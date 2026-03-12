@@ -1,2 +1,2 @@
-# andro-template
+# __TEMPLATE_NAME__
 Android Template Repository
