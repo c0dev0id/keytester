@@ -3,7 +3,7 @@ package de.codevoid.keytester
 data class KeyLogEntry(
     val id: Long,
     val wallTimeMs: Long,
-    val source: String,       // "hw" or "bc"
+    val source: String,       // "hw" or the broadcast action for broadcast events
     val action: String,       // "DOWN", "UP", "MULTIPLE", or raw int
     val keyCode: Int?,
     val keySymbol: String?,

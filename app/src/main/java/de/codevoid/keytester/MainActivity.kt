@@ -32,7 +32,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,7 +45,11 @@ import java.util.Date
 import java.util.Locale
 
 private const val ACTION_KEYPRESS = "com.thorkracing.wireddevices.keypress"
+private const val EXTRA_DEVICE_NAME = "deviceName"
+private const val EXTRA_KEY_PRESS = "key_press"
+private const val EXTRA_KEY_RELEASE = "key_release"
 private const val MAX_LOG = 500
+private val LOG_DATE_FORMAT = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
 
 class MainActivity : ComponentActivity() {
     private val log = mutableStateListOf<KeyLogEntry>()
@@ -56,12 +59,12 @@ class MainActivity : ComponentActivity() {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val extras = intent.extras ?: return
-            val deviceName = extras.getString("deviceName") ?: "<unknown>"
+            val deviceName = extras.getString(EXTRA_DEVICE_NAME) ?: "<unknown>"
             val ts = System.currentTimeMillis()
             val bcSource = intent.action ?: ACTION_KEYPRESS
             when {
-                extras.containsKey("key_press") -> {
-                    val keyCode = extras.getInt("key_press")
+                extras.containsKey(EXTRA_KEY_PRESS) -> {
+                    val keyCode = extras.getInt(EXTRA_KEY_PRESS)
                     broadcastDownTimes[deviceName to keyCode] = ts
                     append(KeyLogEntry(
                         id = nextId++, wallTimeMs = ts, source = bcSource,
@@ -72,8 +75,8 @@ class MainActivity : ComponentActivity() {
                         durationMs = null, rawExtras = null
                     ))
                 }
-                extras.containsKey("key_release") -> {
-                    val keyCode = extras.getInt("key_release")
+                extras.containsKey(EXTRA_KEY_RELEASE) -> {
+                    val keyCode = extras.getInt(EXTRA_KEY_RELEASE)
                     val duration = broadcastDownTimes.remove(deviceName to keyCode)?.let { ts - it }
                     append(KeyLogEntry(
                         id = nextId++, wallTimeMs = ts, source = bcSource,
@@ -158,10 +161,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun shareLog() {
-        val df = SimpleDateFormat("HH:mm:ss.SSS", Locale.US)
         val text = log.asReversed().joinToString("\n") { e ->
             buildString {
-                append("${df.format(Date(e.wallTimeMs))} [${e.source}] ${e.action}")
+                append("${LOG_DATE_FORMAT.format(Date(e.wallTimeMs))} [${e.source}] ${e.action}")
                 if (e.keyCode != null) append(" ${e.keyCode}/${e.keySymbol}")
                 if (e.deviceName != null) append(" dev=\"${e.deviceName}\"")
                 if (e.deviceClass != null) append(" class=${e.deviceClass}")
@@ -179,25 +181,30 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private fun sourceClassToString(sources: Int): String = buildList {
-    if (sources and InputDevice.SOURCE_CLASS_BUTTON != 0) add("button")
-    if (sources and InputDevice.SOURCE_CLASS_POINTER != 0) add("pointer")
-    if (sources and InputDevice.SOURCE_CLASS_TRACKBALL != 0) add("trackball")
-    if (sources and InputDevice.SOURCE_CLASS_POSITION != 0) add("position")
-    if (sources and InputDevice.SOURCE_CLASS_JOYSTICK != 0) add("joystick")
-}.joinToString("+").ifEmpty { "0x${sources.toString(16)}" }
+private fun bitsToString(value: Int, flags: List<Pair<Int, String>>): String =
+    flags.filter { (flag, _) -> value and flag != 0 }
+        .joinToString("+") { (_, name) -> name }
+        .ifEmpty { "0x${value.toString(16)}" }
 
-private fun sourceToString(source: Int): String = buildList {
-    if (source and InputDevice.SOURCE_KEYBOARD != 0) add("keyboard")
-    if (source and InputDevice.SOURCE_DPAD != 0) add("dpad")
-    if (source and InputDevice.SOURCE_GAMEPAD != 0) add("gamepad")
-    if (source and InputDevice.SOURCE_TOUCHSCREEN != 0) add("touchscreen")
-    if (source and InputDevice.SOURCE_MOUSE != 0) add("mouse")
-    if (source and InputDevice.SOURCE_STYLUS != 0) add("stylus")
-    if (source and InputDevice.SOURCE_TRACKBALL != 0) add("trackball")
-    if (source and InputDevice.SOURCE_TOUCHPAD != 0) add("touchpad")
-    if (source and InputDevice.SOURCE_JOYSTICK != 0) add("joystick")
-}.joinToString("+").ifEmpty { "0x${source.toString(16)}" }
+private fun sourceClassToString(sources: Int) = bitsToString(sources, listOf(
+    InputDevice.SOURCE_CLASS_BUTTON to "button",
+    InputDevice.SOURCE_CLASS_POINTER to "pointer",
+    InputDevice.SOURCE_CLASS_TRACKBALL to "trackball",
+    InputDevice.SOURCE_CLASS_POSITION to "position",
+    InputDevice.SOURCE_CLASS_JOYSTICK to "joystick",
+))
+
+private fun sourceToString(source: Int) = bitsToString(source, listOf(
+    InputDevice.SOURCE_KEYBOARD to "keyboard",
+    InputDevice.SOURCE_DPAD to "dpad",
+    InputDevice.SOURCE_GAMEPAD to "gamepad",
+    InputDevice.SOURCE_TOUCHSCREEN to "touchscreen",
+    InputDevice.SOURCE_MOUSE to "mouse",
+    InputDevice.SOURCE_STYLUS to "stylus",
+    InputDevice.SOURCE_TRACKBALL to "trackball",
+    InputDevice.SOURCE_TOUCHPAD to "touchpad",
+    InputDevice.SOURCE_JOYSTICK to "joystick",
+))
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -237,7 +244,6 @@ private fun KeyTesterScreen(
 
 @Composable
 private fun LogEntryRow(entry: KeyLogEntry) {
-    val df = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.US) }
     val actionColor = when (entry.action) {
         "DOWN" -> MaterialTheme.colorScheme.primary
         "UP" -> MaterialTheme.colorScheme.secondary
@@ -269,7 +275,7 @@ private fun LogEntryRow(entry: KeyLogEntry) {
                 )
             }
             Text(
-                df.format(Date(entry.wallTimeMs)),
+                LOG_DATE_FORMAT.format(Date(entry.wallTimeMs)),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.outline
