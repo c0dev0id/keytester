@@ -88,6 +88,7 @@ class MainActivity : ComponentActivity() {
                     ))
                 }
                 else -> {
+                    @Suppress("DEPRECATION")
                     val raw = extras.keySet().joinToString(" ") { "$it=${extras.get(it)}" }
                     append(KeyLogEntry(
                         id = nextId++, wallTimeMs = ts, source = bcSource,
@@ -134,7 +135,7 @@ class MainActivity : ComponentActivity() {
         val action = when (event.action) {
             KeyEvent.ACTION_DOWN -> "DOWN"
             KeyEvent.ACTION_UP -> "UP"
-            KeyEvent.ACTION_MULTIPLE -> "MULTIPLE"
+            2 -> "MULTIPLE"
             else -> event.action.toString()
         }
         val duration = if (event.action != KeyEvent.ACTION_DOWN) event.eventTime - event.downTime else null
