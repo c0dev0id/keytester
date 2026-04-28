@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.Window
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -104,6 +105,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        installKeyLogger()
         enableEdgeToEdge()
         setContent {
             MaterialTheme {
@@ -131,29 +133,34 @@ class MainActivity : ComponentActivity() {
         unregisterReceiver(receiver)
     }
 
-    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        val action = when (event.action) {
-            KeyEvent.ACTION_DOWN -> "DOWN"
-            KeyEvent.ACTION_UP -> "UP"
-            2 -> "MULTIPLE"
-            else -> event.action.toString()
+    private fun installKeyLogger() {
+        val existing = window.callback
+        window.callback = object : Window.Callback by existing {
+            override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+                val action = when (event.action) {
+                    KeyEvent.ACTION_DOWN -> "DOWN"
+                    KeyEvent.ACTION_UP -> "UP"
+                    2 -> "MULTIPLE"
+                    else -> event.action.toString()
+                }
+                val duration = if (event.action != KeyEvent.ACTION_DOWN) event.eventTime - event.downTime else null
+                val device = event.device
+                append(KeyLogEntry(
+                    id = nextId++,
+                    wallTimeMs = System.currentTimeMillis(),
+                    source = "hw",
+                    action = action,
+                    keyCode = event.keyCode,
+                    keySymbol = KeyEvent.keyCodeToString(event.keyCode),
+                    deviceName = device?.name,
+                    deviceClass = device?.sources?.let { sourceClassToString(it) },
+                    inputSource = sourceToString(event.source),
+                    durationMs = duration,
+                    rawExtras = null
+                ))
+                return existing.dispatchKeyEvent(event)
+            }
         }
-        val duration = if (event.action != KeyEvent.ACTION_DOWN) event.eventTime - event.downTime else null
-        val device = event.device
-        append(KeyLogEntry(
-            id = nextId++,
-            wallTimeMs = System.currentTimeMillis(),
-            source = "hw",
-            action = action,
-            keyCode = event.keyCode,
-            keySymbol = KeyEvent.keyCodeToString(event.keyCode),
-            deviceName = device?.name,
-            deviceClass = device?.sources?.let { sourceClassToString(it) },
-            inputSource = sourceToString(event.source),
-            durationMs = duration,
-            rawExtras = null
-        ))
-        return super.dispatchKeyEvent(event)
     }
 
     private fun append(entry: KeyLogEntry) {
