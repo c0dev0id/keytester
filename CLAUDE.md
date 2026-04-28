@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Android app that captures and displays key events from all input sources except touch. Also listens to the `com.thorkracing.wireddevices.keypress` broadcast intent. Displays per event: key code, key symbol, event type (down/up), device name, class, and source.
 
-**Status:** Template placeholders (`__TEMPLATE_NAME__`) have not been replaced yet. Before any feature work, rename the package, app label, and file paths to the real app name.
+**Status:** Template placeholders (`keytester`) have not been replaced yet. Before any feature work, rename the package, app label, and file paths to the real app name.
 
 ## Build & CI
 
